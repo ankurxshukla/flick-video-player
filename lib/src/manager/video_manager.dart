@@ -6,10 +6,9 @@ typedef TimerCancelCallback(bool playNext);
 ///
 /// Responsible to maintain life-cycle of [VideoPlayerController].
 class FlickVideoManager extends ChangeNotifier {
-  FlickVideoManager(
-      {required FlickManager flickManager,
-      required this.autoPlay,
-      required this.autoInitialize})
+  FlickVideoManager({required FlickManager flickManager,
+    required this.autoPlay,
+    required this.autoInitialize})
       : _flickManager = flickManager;
 
   final FlickManager _flickManager;
@@ -59,6 +58,7 @@ class FlickVideoManager extends ChangeNotifier {
   /// Is current video initialized.
   bool get isVideoInitialized =>
       videoPlayerController?.value.isInitialized ?? false;
+
   bool get isPlaying => videoPlayerController?.value.isPlaying ?? false;
 
   /// Cancel the current auto player timer with option of playing the next video directly.
@@ -83,7 +83,8 @@ class FlickVideoManager extends ChangeNotifier {
 
   _handleChangeVideo(VideoPlayerController newController,
       {Duration? videoChangeDuration,
-      TimerCancelCallback? timerCancelCallback}) async {
+        TimerCancelCallback? timerCancelCallback,
+        Duration? position}) async {
     // If videoChangeDuration is not null, start the autoPlayTimer.
     if (videoChangeDuration != null) {
       _timerCancelCallback = timerCancelCallback;
@@ -101,17 +102,20 @@ class FlickVideoManager extends ChangeNotifier {
       _notify();
     } else {
       // If videoChangeDuration is null, directly change the video.
-      _changeVideo(newController);
+      _changeVideo(newController, position);
     }
   }
 
   // Immediately change the video.
-  _changeVideo(VideoPlayerController newController) async {
+  _changeVideo(VideoPlayerController newController, Duration? position) async {
     //  Change the videoPlayerController with the new controller,
     // notify the controller change and remove listeners from the old controller.
     VideoPlayerController? oldController = videoPlayerController;
     _flickManager.flickControlManager!.pause();
     _videoPlayerController = newController;
+    if (position != null) {
+      _videoPlayerController?.seekTo(position);
+    }
     oldController?.removeListener(_videoListener);
     videoPlayerController!.addListener(_videoListener);
     // Video listener is called once video starts playing,
@@ -148,61 +152,61 @@ class FlickVideoManager extends ChangeNotifier {
 
     _notify();
   }
+}
 
-  // Listener for video change.
-  _videoListener() {
-    _videoPlayerValue = videoPlayerController!.value;
+// Listener for video change.
+_videoListener() {
+  _videoPlayerValue = videoPlayerController!.value;
 
-    // If video position has reached the end, take action for videoEnd.
-    if (videoPlayerValue != null &&
-        // videoPlayerValue!.position != null &&
-        videoPlayerValue?.duration != null &&
-        (videoPlayerValue!.position) >= videoPlayerValue!.duration) {
-      if (!_currentVideoEnded) {
-        handleVideoEnd();
-      }
-    } else {
-      // Cancel the video end timer if running while user starts seeing the video again.
-      _currentVideoEnded = false;
-      if (_nextVideoAutoPlayTimer != null) {
-        cancelVideoAutoPlayTimer();
-        // Due to some bug in video player, have to play the video again after
-        // video is seek or replayed once ended.
-        _flickManager.flickControlManager!.play();
-      }
+  // If video position has reached the end, take action for videoEnd.
+  if (videoPlayerValue != null &&
+      // videoPlayerValue!.position != null &&
+      videoPlayerValue?.duration != null &&
+      (videoPlayerValue!.position) >= videoPlayerValue!.duration) {
+    if (!_currentVideoEnded) {
+      handleVideoEnd();
     }
-
-    // Mark video is buffering if video has not ended, has no error,
-    // and position is equal to buffered duration.
-    _isBuffering = !isVideoEnded &&
-        !videoPlayerValue!.hasError &&
-        videoPlayerController!.value.buffered.isNotEmpty == true &&
-        videoPlayerController!.value.position.inSeconds >=
-            videoPlayerController!.value.buffered[0].end.inSeconds;
-
-    _notify();
-  }
-
-  // Video-end handler.
-  // Called when the current playing video is ended.
-  handleVideoEnd() {
-    _currentVideoEnded = true;
-    _flickManager._handleVideoEnd();
-  }
-
-  _notify() {
-    if (_mounted) {
-      notifyListeners();
+  } else {
+    // Cancel the video end timer if running while user starts seeing the video again.
+    _currentVideoEnded = false;
+    if (_nextVideoAutoPlayTimer != null) {
+      cancelVideoAutoPlayTimer();
+      // Due to some bug in video player, have to play the video again after
+      // video is seek or replayed once ended.
+      _flickManager.flickControlManager!.play();
     }
   }
 
-  @override
-  void dispose() {
-    _mounted = false;
-    _videoPlayerController?.pause();
-    _videoPlayerController?.removeListener(_videoListener);
-    _videoPlayerController?.dispose();
+  // Mark video is buffering if video has not ended, has no error,
+  // and position is equal to buffered duration.
+  _isBuffering = !isVideoEnded &&
+      !videoPlayerValue!.hasError &&
+      videoPlayerController!.value.buffered.isNotEmpty == true &&
+      videoPlayerController!.value.position.inSeconds >=
+          videoPlayerController!.value.buffered[0].end.inSeconds;
 
-    super.dispose();
+  _notify();
+}
+
+// Video-end handler.
+// Called when the current playing video is ended.
+handleVideoEnd() {
+  _currentVideoEnded = true;
+  _flickManager._handleVideoEnd();
+}
+
+_notify() {
+  if (_mounted) {
+    notifyListeners();
   }
 }
+
+@override
+void dispose() {
+  _mounted = false;
+  _videoPlayerController?.pause();
+  _videoPlayerController?.removeListener(_videoListener);
+  _videoPlayerController?.dispose();
+
+  super.dispose();
+}}

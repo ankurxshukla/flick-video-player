@@ -64,10 +64,10 @@ class FlickManager {
   /// if [videoChangeDuration] is passed video change will happen after that duration.
   handleChangeVideo(VideoPlayerController videoPlayerController,
       {Duration? videoChangeDuration,
-      TimerCancelCallback? timerCancelCallback}) {
+      TimerCancelCallback? timerCancelCallback, Duration? position}) {
     _flickVideoManager!._handleChangeVideo(videoPlayerController,
         videoChangeDuration: videoChangeDuration,
-        timerCancelCallback: timerCancelCallback);
+        timerCancelCallback: timerCancelCallback, position: position);
   }
 
   _handleToggleFullscreen() {
