@@ -114,9 +114,6 @@ class FlickVideoManager extends ChangeNotifier {
     VideoPlayerController? oldController = videoPlayerController;
     _flickManager.flickControlManager!.pause();
     _videoPlayerController = newController;
-    if (position != null) {
-      _videoPlayerController?.seekTo(position);
-    }
     oldController?.removeListener(_videoListener);
     videoPlayerController!.addListener(_videoListener);
     // Video listener is called once video starts playing,
@@ -144,6 +141,10 @@ class FlickVideoManager extends ChangeNotifier {
         videoPlayerController!.value.duration) {
       videoPlayerController!
           .seekTo(Duration(hours: 0, minutes: 0, seconds: 0, milliseconds: 0));
+    }
+
+    if (position != null) {
+      videoPlayerController?.seekTo(position);
     }
 
     if (autoPlay && ModalRoute.of(_flickManager._context!)!.isCurrent) {
