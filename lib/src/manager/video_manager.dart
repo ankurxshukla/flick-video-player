@@ -6,9 +6,10 @@ typedef TimerCancelCallback(bool playNext);
 ///
 /// Responsible to maintain life-cycle of [VideoPlayerController].
 class FlickVideoManager extends ChangeNotifier {
-  FlickVideoManager({required FlickManager flickManager,
-    required this.autoPlay,
-    required this.autoInitialize})
+  FlickVideoManager(
+      {required FlickManager flickManager,
+      required this.autoPlay,
+      required this.autoInitialize})
       : _flickManager = flickManager;
 
   final FlickManager _flickManager;
@@ -83,13 +84,13 @@ class FlickVideoManager extends ChangeNotifier {
 
   _handleChangeVideo(VideoPlayerController newController,
       {Duration? videoChangeDuration,
-        TimerCancelCallback? timerCancelCallback,
-        Duration? position}) async {
+      TimerCancelCallback? timerCancelCallback,
+      Duration? position}) async {
     // If videoChangeDuration is not null, start the autoPlayTimer.
     if (videoChangeDuration != null) {
       _timerCancelCallback = timerCancelCallback;
       _videoChangeCallback = () {
-        _changeVideo(newController);
+        _changeVideo(newController, null);
         _nextVideoAutoPlayTimer = null;
         _nextVideoAutoPlayDuration = null;
         _videoChangeCallback = null;
@@ -152,61 +153,61 @@ class FlickVideoManager extends ChangeNotifier {
 
     _notify();
   }
-}
 
-// Listener for video change.
-_videoListener() {
-  _videoPlayerValue = videoPlayerController!.value;
+  // Listener for video change.
+  _videoListener() {
+    _videoPlayerValue = videoPlayerController!.value;
 
-  // If video position has reached the end, take action for videoEnd.
-  if (videoPlayerValue != null &&
-      // videoPlayerValue!.position != null &&
-      videoPlayerValue?.duration != null &&
-      (videoPlayerValue!.position) >= videoPlayerValue!.duration) {
-    if (!_currentVideoEnded) {
-      handleVideoEnd();
+    // If video position has reached the end, take action for videoEnd.
+    if (videoPlayerValue != null &&
+        // videoPlayerValue!.position != null &&
+        videoPlayerValue?.duration != null &&
+        (videoPlayerValue!.position) >= videoPlayerValue!.duration) {
+      if (!_currentVideoEnded) {
+        handleVideoEnd();
+      }
+    } else {
+      // Cancel the video end timer if running while user starts seeing the video again.
+      _currentVideoEnded = false;
+      if (_nextVideoAutoPlayTimer != null) {
+        cancelVideoAutoPlayTimer();
+        // Due to some bug in video player, have to play the video again after
+        // video is seek or replayed once ended.
+        _flickManager.flickControlManager!.play();
+      }
     }
-  } else {
-    // Cancel the video end timer if running while user starts seeing the video again.
-    _currentVideoEnded = false;
-    if (_nextVideoAutoPlayTimer != null) {
-      cancelVideoAutoPlayTimer();
-      // Due to some bug in video player, have to play the video again after
-      // video is seek or replayed once ended.
-      _flickManager.flickControlManager!.play();
-    }
+
+    // Mark video is buffering if video has not ended, has no error,
+    // and position is equal to buffered duration.
+    _isBuffering = !isVideoEnded &&
+        !videoPlayerValue!.hasError &&
+        videoPlayerController!.value.buffered.isNotEmpty == true &&
+        videoPlayerController!.value.position.inSeconds >=
+            videoPlayerController!.value.buffered[0].end.inSeconds;
+
+    _notify();
   }
-
-  // Mark video is buffering if video has not ended, has no error,
-  // and position is equal to buffered duration.
-  _isBuffering = !isVideoEnded &&
-      !videoPlayerValue!.hasError &&
-      videoPlayerController!.value.buffered.isNotEmpty == true &&
-      videoPlayerController!.value.position.inSeconds >=
-          videoPlayerController!.value.buffered[0].end.inSeconds;
-
-  _notify();
-}
 
 // Video-end handler.
 // Called when the current playing video is ended.
-handleVideoEnd() {
-  _currentVideoEnded = true;
-  _flickManager._handleVideoEnd();
-}
+  handleVideoEnd() {
+    _currentVideoEnded = true;
+    _flickManager._handleVideoEnd();
+  }
 
-_notify() {
-  if (_mounted) {
-    notifyListeners();
+  _notify() {
+    if (_mounted) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    _videoPlayerController?.pause();
+    _videoPlayerController?.removeListener(_videoListener);
+    _videoPlayerController?.dispose();
+
+    super.dispose();
   }
 }
-
-@override
-void dispose() {
-  _mounted = false;
-  _videoPlayerController?.pause();
-  _videoPlayerController?.removeListener(_videoListener);
-  _videoPlayerController?.dispose();
-
-  super.dispose();
-}}
